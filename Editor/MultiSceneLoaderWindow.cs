@@ -55,7 +55,7 @@ namespace MultiSceneLoader
 
                 // ファイルを保存
                 AssetDatabase.CreateAsset(createData, k_DataPath);
-                Debug.Log("Multi scene loader".Large().Coloring("cyan") + "  " + "Create new data!");
+                Debug.Log("Multi scene loader".Coloring("cyan") + " " + "Create new data!");
 
                 // 再帰
                 LoadData(loopCount);
@@ -337,6 +337,11 @@ namespace MultiSceneLoader
             return sourceFilePath.Replace("\\", "/");
         }
 
+
+
+        /// <summary>
+        /// セッティングポップアップウィンドウ
+        /// </summary>
         public class MulltiSceneLoaderPopupContent : PopupWindowContent
         {
             private const int k_ElementCount = 5;
@@ -345,7 +350,7 @@ namespace MultiSceneLoader
             /// </summary>
             public override Vector2 GetWindowSize()
             {
-                return new Vector2(300, (EditorGUIUtility.singleLineHeight + 3) * k_ElementCount);
+                return new Vector2(200, (EditorGUIUtility.singleLineHeight + 3) * k_ElementCount);
             }
 
             /// <summary>
@@ -356,6 +361,15 @@ namespace MultiSceneLoader
                 var button_Style = EditorStyles.miniButtonMid;
                 button_Style.margin.top = 0;
                 button_Style.margin.bottom = 0;
+
+                if (GUILayout.Button("Select data file", button_Style))
+                {
+                    var obj = AssetDatabase.LoadAssetAtPath(MultiSceneLoaderWindow.k_DataPath, typeof(UnityEngine.Object));
+                    if (obj != null)
+                    {
+                        EditorGUIUtility.PingObject(obj);
+                    }
+                }
 
                 if (GUILayout.Button("Open data file", button_Style))
                 {
