@@ -1,0 +1,18 @@
+{
+    "name": "daikikobayashi1910.MultiSceneLoader.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:be7b6a89fb1fcfd4791b8b9acab11344"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
