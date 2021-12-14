@@ -112,7 +112,7 @@ namespace MultiSceneLoader
                     selectWindowType = SelectWindowType.Main;
                 }
 
-                if (GUILayout.Button("Data", EditorStyles.toolbarButton))
+                if (GUILayout.Button(EditorGUIUtility.TrIconContent("d_SaveAs"), EditorStyles.toolbarButton, GUILayout.Width(25)))
                 {
                     selectWindowType = SelectWindowType.SceneLoaderData;
                 }
@@ -350,7 +350,7 @@ namespace MultiSceneLoader
             /// </summary>
             public override Vector2 GetWindowSize()
             {
-                return new Vector2(200, (EditorGUIUtility.singleLineHeight + 3) * k_ElementCount);
+                return new Vector2(100, (EditorGUIUtility.singleLineHeight + 3) * k_ElementCount);
             }
 
             /// <summary>
@@ -358,6 +358,8 @@ namespace MultiSceneLoader
             /// </summary>
             public override void OnGUI(Rect rect)
             {
+                GUI.Box(rect,"");
+
                 var button_Style = EditorStyles.miniButtonMid;
                 button_Style.margin.top = 0;
                 button_Style.margin.bottom = 0;
