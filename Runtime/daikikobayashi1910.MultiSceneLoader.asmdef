@@ -1,3 +1,14 @@
 {
-	"name": "daikikobayashi1910.MultiSceneLoader"
+    "name": "daikikobayashi1910.MultiSceneLoader",
+    "rootNamespace": "",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

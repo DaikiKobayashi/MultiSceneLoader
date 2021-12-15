@@ -114,7 +114,10 @@ namespace MultiSceneLoader
 
                 if (GUILayout.Button(EditorGUIUtility.TrIconContent("d_SaveAs"), EditorStyles.toolbarButton, GUILayout.Width(25)))
                 {
-                    selectWindowType = SelectWindowType.SceneLoaderData;
+                    var wind = CreateInstance<SceneLoaderDataWindow>();
+                    wind.SetUp(loadSceneList);
+                    wind.titleContent = new GUIContent("TITLE");
+                    wind.Show();
                 }
 
                 if (GUILayout.Button(EditorGUIUtility.TrIconContent("_Popup@2x"), EditorStyles.toolbarButton, GUILayout.Width(25)))
