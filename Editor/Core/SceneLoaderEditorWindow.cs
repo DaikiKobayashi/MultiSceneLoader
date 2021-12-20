@@ -12,8 +12,8 @@ namespace MultiSceneLoader
 {
     public class SceneLoaderEditorWindow : EditorWindow
     {
-        public const string k_DataPath = "Assets/MultiSceneLoader/Data/LoaderSceneListData.asset";
-        private const string k_SceneGroupStylePath = "Packages/com.daikikobayashi1910.multi_scene_loader/Editor/UIElement/Core/MultipleSceneGroup.uxml";
+        public const string k_DataPath = "Packages/com.daikikobayashi1910.multi_scene_loader/Runtime/Data/LoaderSceneListData.asset";
+        private const string k_SceneGroupStylePath = "Packages/com.daikikobayashi1910.multi_scene_loader/Editor/Core/MultipleSceneGroup.uxml";
 
 
         private static SceneLoadDataSO loadSceneList;
@@ -24,7 +24,7 @@ namespace MultiSceneLoader
         private ScrollView pushSceneList;
         private Label dropSceneMessageLabel;
 
-        [MenuItem("Window/UI Toolkit/SceneLoaderEditorWindow")]
+        [MenuItem("Tool/SceneLoaderEditorWindow")]
         public static void ShowExample()
         {
             SceneLoaderEditorWindow wnd = GetWindow<SceneLoaderEditorWindow>();
@@ -35,8 +35,8 @@ namespace MultiSceneLoader
         public void OnEnable()
         {
             // Import UXML
-            var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Packages/com.daikikobayashi1910.multi_scene_loader/Editor/UIElement/Core/SceneLoaderEditorWindow.uxml");
-            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>("Packages/com.daikikobayashi1910.multi_scene_loader/Editor/UIElement/Core/SceneLoaderEditorWindow.uss");
+            var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Packages/com.daikikobayashi1910.multi_scene_loader/Editor/Core/SceneLoaderEditorWindow.uxml");
+            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>("Packages/com.daikikobayashi1910.multi_scene_loader/Editor/Core/SceneLoaderEditorWindow.uss");
             sceneGroupTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(k_SceneGroupStylePath);
 
             // インポートしたVisualTreeAssetを反映
