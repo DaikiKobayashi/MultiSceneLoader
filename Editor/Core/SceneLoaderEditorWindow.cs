@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -7,16 +7,17 @@ using UnityEditor.UIElements;
 using System.Linq;
 using System.IO;
 using UnityEditor.SceneManagement;
+using System.Text.RegularExpressions;
 
 namespace MultiSceneLoader
 {
     public class SceneLoaderEditorWindow : EditorWindow
     {
-        public const string k_DataPath = "Packages/com.daikikobayashi1910.multi_scene_loader/Runtime/Data/LoaderSceneListData.asset";
-        private const string k_SceneGroupStylePath = "Packages/com.daikikobayashi1910.multi_scene_loader/Editor/Core/MultipleSceneGroup.uxml";
+        private const string WindowUxmlPath = "Packages/com.k_daiki1910.multi_scene_loader/Editor/Core/SceneLoaderEditorWindow.uxml";
+        private const string WindowUssPath = "Packages/com.k_daiki1910.multi_scene_loader/Editor/Core/SceneLoaderEditorWindow.uss";
+        private const string SceneGroupStylePath = "Packages/com.k_daiki1910.multi_scene_loader/Editor/Core/MultipleSceneGroup.uxml";
 
-
-        private static SceneLoadDataSO loadSceneList;
+        private SceneLoadDataSO loadSceneData;
         private VisualTreeAsset sceneGroupTree;
 
         private ScrollView sceneListView;
@@ -24,32 +25,45 @@ namespace MultiSceneLoader
         private ScrollView pushSceneList;
         private Label dropSceneMessageLabel;
 
-        [MenuItem("Tool/SceneLoaderEditorWindow")]
+        [MenuItem("Tools/Open SceneLoaderEditorWindow")]
         public static void ShowExample()
         {
             SceneLoaderEditorWindow wnd = GetWindow<SceneLoaderEditorWindow>();
-            wnd.titleContent = new GUIContent("SceneLoaderEditorWindow");
+            wnd.titleContent = new GUIContent("Scene Loader");
+            wnd.Initlaize();
         }
 
-
-        public void OnEnable()
+        private void Initlaize()
         {
-            // Import UXML
-            var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Packages/com.daikikobayashi1910.multi_scene_loader/Editor/Core/SceneLoaderEditorWindow.uxml");
-            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>("Packages/com.daikikobayashi1910.multi_scene_loader/Editor/Core/SceneLoaderEditorWindow.uss");
-            sceneGroupTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(k_SceneGroupStylePath);
+            // ãƒ‡ãƒ¼ã‚¿ãŒç„¡ã‘ã‚Œã°é–‹ã‹ãªã„
+            loadSceneData = GetOrCreateSaveData();
+            if (loadSceneData == null)
+                Close();
 
-            // ƒCƒ“ƒ|[ƒg‚µ‚½VisualTreeAsset‚ğ”½‰f
+            Debug.Log("[SceneLoader]".Bold().Coloring("cyan") + " => " + "Get save data!");
+
+            ImportStyles();
+            DataReflectedView();
+        }
+
+        private void ImportStyles()
+        {
+            // Import UXMLs
+            var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(WindowUxmlPath);
+            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(WindowUssPath);
+            sceneGroupTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(SceneGroupStylePath);
+
+            // ã‚¤ãƒ³ãƒãƒ¼ãƒˆã—ãŸVisualTreeAssetã‚’åæ˜ 
             visualTree.CloneTree(rootVisualElement);
             rootVisualElement.styleSheets.Add(uss);
 
-            // ŠeƒAƒCƒeƒ€‚ğæ“¾
+            // å„ã‚¢ã‚¤ãƒ†ãƒ ã‚’å–å¾—
             sceneListView = rootVisualElement.Query<ScrollView>("SceneListView").First();
             sceneGroupNameField = rootVisualElement.Query<TextField>("SceneGroupPushName").First();
             pushSceneList = rootVisualElement.Query<ScrollView>("PushSceneList").First();
             dropSceneMessageLabel = rootVisualElement.Query<Label>("DropSceneMessageLabel").First();
 
-            // ŠeƒAƒCƒeƒ€ƒCƒxƒ“ƒg‚ğ“o˜^
+            // å„ã‚¢ã‚¤ãƒ†ãƒ ã‚¤ãƒ™ãƒ³ãƒˆã‚’ç™»éŒ²
             rootVisualElement.Query<Button>("SceneGroupPushButton").First().clicked += () =>
             {
                 PushSceneGroup();
@@ -65,10 +79,15 @@ namespace MultiSceneLoader
                 var obj = new List<Object>(DragAndDrop.objectReferences);
                 AddPushSceneList(obj);
             });
+        }
 
-
-            // ƒf[ƒ^‚ğƒ[ƒh
-            DataLoad();
+        private void DataReflectedView()
+        {
+            // ãƒ‡ãƒ¼ã‚¿ã‚’èª­ã¿è¾¼ã¿ãƒ“ãƒ¥ãƒ¼ã¸åæ˜ ã™ã‚‹
+            foreach(var item in loadSceneData.loadGroups)
+            {
+                AddSceneGroupElement(item.dataName, item.sceneList);
+            }
         }
 
         private void OnDisable()
@@ -76,53 +95,22 @@ namespace MultiSceneLoader
             DataSave();
         }
 
-        private void DataLoad(int loopCount = 0)
-        {
-            var data = AssetDatabase.LoadAssetAtPath(k_DataPath, typeof(SceneLoadDataSO)) as SceneLoadDataSO;
-            
-            // ƒf[ƒ^‚ª‘¶İ‚·‚é‚©
-            if (data == null)
-            {
-                // ƒfƒBƒŒƒNƒgƒŠŠK‘w‚ª–³‚¯‚ê‚Îì¬
-                FileEx.SafeCreateDirectory(k_DataPath);
-
-                // ƒtƒ@ƒCƒ‹‚ğì¬
-                var createData = ScriptableObject.CreateInstance(typeof(SceneLoadDataSO));
-
-                // ƒtƒ@ƒCƒ‹‚ğ•Û‘¶
-                AssetDatabase.CreateAsset(createData, k_DataPath);
-                Debug.Log("Multi scene loader".Coloring("cyan") + " " + "Create new data!");
-
-                // Ä‹A
-                DataLoad(loopCount++);
-            }
-
-            loadSceneList = data;
-
-            // ƒf[ƒ^‚ğ“Ç‚İ‚Ş
-            for(int i = 0;i < loadSceneList.loadGroups.Count; i++)
-            {
-                var loadData = loadSceneList.loadGroups[i];
-
-                AddSceneGroupElement(loadData.dataName, loadData.sceneList.ToList());
-            }
-
-            Debug.Log("SceneLoader".Bold().Coloring("cyan") + " => " + "Data Load!");
-        }
-
         private void DataSave()
         {
-            Debug.Log("SceneLoader".Bold().Coloring("cyan") + " => " +"Data Save!");
+            if (loadSceneData == null)
+                return;
+
+            Debug.Log("[SceneLoader]".Bold().Coloring("cyan") + " => " +"Data Save!");
 
             var newSaveData = new List<LoadData>();
 
             rootVisualElement.Query<VisualElement>(null, "SceneGroupElement")
                 .ForEach(x =>
                 {
-                    // ƒ^ƒCƒgƒ‹‚ğæ“¾
+                    // ã‚¿ã‚¤ãƒˆãƒ«ã‚’å–å¾—
                     string title = x.Query<Label>("GroupTitle").First().text;
                     
-                    // ƒV[ƒ“ƒpƒX‚ğæ“¾
+                    // ã‚·ãƒ¼ãƒ³ãƒ‘ã‚¹ã‚’å–å¾—
                     List<string> scenePath = new List<string>();
                     x.Query<Label>(null, "ScenePathLabel")
                     .ForEach(x =>
@@ -135,11 +123,12 @@ namespace MultiSceneLoader
                         scenePath.ToArray()));
                 });
 
-            loadSceneList.loadGroups = newSaveData;
+            loadSceneData.loadGroups = newSaveData;
+            loadSceneData = null;
         }
 
         /// <summary>
-        /// ƒV[ƒ“ƒOƒ‹[ƒv‚ğƒŠƒXƒgƒrƒ…[‚É’Ç‰Á
+        /// ã‚·ãƒ¼ãƒ³ã‚°ãƒ«ãƒ¼ãƒ—ã‚’ãƒªã‚¹ãƒˆãƒ“ãƒ¥ãƒ¼ã«è¿½åŠ 
         /// </summary>
         /// <param name="title"></param>
         /// <param name="sceneNames"></param>
@@ -158,7 +147,7 @@ namespace MultiSceneLoader
             };
             instance.Query<Button>("LoadButton").First().clicked += () =>
             {
-                // ƒV[ƒ“‚ğ•Û‘¶‚·‚é‚©?
+                // ã‚·ãƒ¼ãƒ³ã‚’ä¿å­˜ã™ã‚‹ã‹?
                 if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 {
                     var loadScenes = loadSceneListView.Query<Label>(null, "ScenePathLabel").ToList();
@@ -185,11 +174,11 @@ namespace MultiSceneLoader
         }
 
         /// <summary>
-        /// ƒV[ƒ“ƒŠƒXƒg‚ğƒvƒbƒVƒ…
+        /// ã‚·ãƒ¼ãƒ³ãƒªã‚¹ãƒˆã‚’ãƒ—ãƒƒã‚·ãƒ¥
         /// </summary>
         void PushSceneGroup()
         {
-            // ƒV[ƒ“ƒŠƒXƒg‚©‚ç—v‘f‚ğæ“¾
+            // ã‚·ãƒ¼ãƒ³ãƒªã‚¹ãƒˆã‹ã‚‰è¦ç´ ã‚’å–å¾—
             var pushScenes = pushSceneList.Query<VisualElement>(null, "PushSceneLabel")
                 .ToList()
                 .Select(x =>
@@ -206,12 +195,12 @@ namespace MultiSceneLoader
         }
 
         /// <summary>
-        /// ƒvƒbƒVƒ…ƒV[ƒ“ƒŠƒXƒg‚É’Ç‰Á
+        /// ãƒ—ãƒƒã‚·ãƒ¥ã‚·ãƒ¼ãƒ³ãƒªã‚¹ãƒˆã«è¿½åŠ 
         /// </summary>
-        /// <param name="list">ƒhƒ‰ƒbƒO‚³‚ê‚½ƒIƒuƒWƒFƒNƒg</param>
+        /// <param name="list">ãƒ‰ãƒ©ãƒƒã‚°ã•ã‚ŒãŸã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ</param>
         void AddPushSceneList(List<Object> list)
         {
-            // —v‘f”‚ª•Ï‰»‚µ‚½‚©
+            // è¦ç´ æ•°ãŒå¤‰åŒ–ã—ãŸã‹
             bool isElementChange = false;
 
             for (int i = 0; i < list.Count; i++)
@@ -263,7 +252,7 @@ namespace MultiSceneLoader
         }
 
         /// <summary>
-        /// ’Ç‰ÁƒV[ƒ“ƒŠƒXƒg‚Ì—v‘f•ÏXƒCƒxƒ“ƒg
+        /// è¿½åŠ ã‚·ãƒ¼ãƒ³ãƒªã‚¹ãƒˆã®è¦ç´ å¤‰æ›´ã‚¤ãƒ™ãƒ³ãƒˆ
         /// </summary>
         private void SceneListElementChangeEvent()
         {
@@ -280,24 +269,54 @@ namespace MultiSceneLoader
         }
 
         /// <summary>
-        /// PushSceneList‚Ìæ“¾
+        /// PushSceneListã®å–å¾—
         /// </summary>
         private UQueryBuilder<VisualElement> PushSceneLabels => pushSceneList.Query<VisualElement>(null, "PushSceneLabel");
-    }
 
-    public static class FileEx
-    {
+
+
         /// <summary>
-        /// w’è‚µ‚½ƒpƒX‚ÉƒfƒBƒŒƒNƒgƒŠ‚ª‘¶İ‚µ‚È‚¢ê‡
-        /// ‚·‚×‚Ä‚ÌƒfƒBƒŒƒNƒgƒŠ‚ÆƒTƒuƒfƒBƒŒƒNƒgƒŠ‚ğì¬‚µ‚Ü‚·
+        /// ã‚»ãƒ¼ãƒ–ãƒ‡ãƒ¼ã‚¿ã‚’å–å¾—ã™ã‚‹ã€‚ç„¡ã‘ã‚Œã°ä½œæˆã™ã‚‹
         /// </summary>
-        public static void SafeCreateDirectory(string path)
+        /// <returns></returns>
+        private static SceneLoadDataSO GetOrCreateSaveData()
         {
-            string distDir = Path.GetDirectoryName(path);
-            if (!Directory.Exists(distDir))
+            var guids = AssetDatabase.FindAssets("t:SceneLoadDataSO");
+            if (guids.Length == 0)
             {
-                Directory.CreateDirectory(path);
+                return CreateSaveData();
             }
+
+            var path = AssetDatabase.GUIDToAssetPath(guids[0]);
+            var obj = AssetDatabase.LoadAssetAtPath<SceneLoadDataSO>(path);
+            
+            return obj;
+        }
+
+        /// <summary>
+        /// ã‚»ãƒ¼ãƒ–ãƒ‡ãƒ¼ã‚¿ã®ä½œæˆã‚’è¡Œã†
+        /// </summary>
+        /// <returns></returns>
+        private static SceneLoadDataSO CreateSaveData()
+        {
+            var savePath = EditorUtility.SaveFilePanel("Save", "Assets", "SceneLoaderSaveData", "asset");
+
+            // ãƒ‘ã‚¹ãŒå…¥ã£ã¦ã„ã‚Œã°å€¤ãŒå…¥ã£ã¦ã„ã‚‹
+            if (!string.IsNullOrEmpty(savePath)) 
+            {
+                var temp = Regex.Split(savePath, "/Assets/");
+                savePath = "Assets/" + temp[1];
+
+                // ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’ä½œæˆ
+                var createdSaveData = ScriptableObject.CreateInstance<SceneLoadDataSO>();
+                
+                // ãƒ•ã‚¡ã‚¤ãƒ«ã‚’æŒ‡å®šã—ãŸå ´æ‰€ã¸ä¿å­˜
+                AssetDatabase.CreateAsset(createdSaveData, savePath);
+
+                return createdSaveData;
+            }
+
+            return null;
         }
     }
 }
