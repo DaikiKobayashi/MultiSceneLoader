@@ -8,6 +8,7 @@ using System.Linq;
 using System.IO;
 using UnityEditor.SceneManagement;
 using System.Text.RegularExpressions;
+using System;
 
 namespace MultiSceneLoader
 {
@@ -63,28 +64,26 @@ namespace MultiSceneLoader
             pushSceneList = rootVisualElement.Query<ScrollView>("PushSceneList").First();
             dropSceneMessageLabel = rootVisualElement.Query<Label>("DropSceneMessageLabel").First();
 
-            // 各アイテムイベントを登録
-            rootVisualElement.Query<Button>("SceneGroupPushButton").First().clicked += () =>
-            {
-                PushSceneGroup();
-            };
+            // 各アイテムイベントを登録 //
 
+            // Addボタンが押された際のイベント
+            rootVisualElement.Query<Button>("SceneGroupPushButton").First().clicked += PushSceneGroup;
+
+            // シーンがドロップされた際のイベント
+            pushSceneList.RegisterCallback<DragPerformEvent>(OnAddPushSceneList);
+
+            // ドラッグ可能領域にドラッグされた際のイベント
             pushSceneList.RegisterCallback<DragUpdatedEvent>(evt =>
             {
+                // これがないとドロップ可能アイコンが表示されない
                 DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
-            });
-
-            pushSceneList.RegisterCallback<DragPerformEvent>(evt =>
-            {
-                var obj = new List<Object>(DragAndDrop.objectReferences);
-                AddPushSceneList(obj);
             });
         }
 
         private void DataReflectedView()
         {
             // データを読み込みビューへ反映する
-            foreach(var item in loadSceneData.loadGroups)
+            foreach (var item in loadSceneData.loadGroups)
             {
                 AddSceneGroupElement(item.dataName, item.sceneList);
             }
@@ -100,7 +99,7 @@ namespace MultiSceneLoader
             if (loadSceneData == null)
                 return;
 
-            Debug.Log("[SceneLoader]".Bold().Coloring("cyan") + " => " +"Data Save!");
+            Debug.Log("[SceneLoader]".Bold().Coloring("cyan") + " => " + "Data Save!");
 
             var newSaveData = new List<LoadData>();
 
@@ -109,7 +108,7 @@ namespace MultiSceneLoader
                 {
                     // タイトルを取得
                     string title = x.Query<Label>("GroupTitle").First().text;
-                    
+
                     // シーンパスを取得
                     List<string> scenePath = new List<string>();
                     x.Query<Label>(null, "ScenePathLabel")
@@ -185,76 +184,83 @@ namespace MultiSceneLoader
                 {
                     return x.Query<Label>().First().text;
                 });
-            
+
             if (!pushScenes.Any())
                 return;
 
             AddSceneGroupElement(sceneGroupNameField.text, pushScenes);
-            
-            SceneListElementChangeEvent();
+
+            OnSceneListElementChange();
         }
 
         /// <summary>
-        /// プッシュシーンリストに追加
+        /// ドラッグ&ドロップされたオブジェクトを取得
         /// </summary>
-        /// <param name="list">ドラッグされたオブジェクト</param>
-        void AddPushSceneList(List<Object> list)
+        /// <returns></returns>
+        private U[] GetDropObjects<U>() where U : UnityEngine.Object
         {
-            // 要素数が変化したか
-            bool isElementChange = false;
+            var dropObjects = DragAndDrop.objectReferences;
+            var result = dropObjects
+                .Select(x => x is U y ? y : null)
+                .Where(x => x != null)
+                .ToArray();
 
-            for (int i = 0; i < list.Count; i++)
+            return result;
+        }
+
+        /// <summary>
+        /// シーンリストにドロップされた際のコールバック
+        /// </summary>
+        private void OnAddPushSceneList(DragPerformEvent evt)
+        {
+            var dropObjects = GetDropObjects<SceneAsset>();
+            if (!dropObjects.Any())
+                return;
+
+            ReadOnlySpan<SceneAsset> dropObjectsSpan = dropObjects.AsSpan();
+            foreach (var dropObject in dropObjectsSpan)
             {
-                var obj = list[i];
-                if (obj is SceneAsset)
+                // Sceneリストに登録されている数が0以上
+                if (pushSceneList.AnyChild())
                 {
-                    if (pushSceneList.childCount > 0)
-                    {
-                        bool continueflag = false;
-                        foreach (var child in pushSceneList.Children())
-                        {
-                            if (child.name == $"SceneElement-{obj.name}")
-                            {
-                                continueflag = true;
-                                break;
-                            }
-                        }
-
-                        if (continueflag)
-                            continue;
-                    }
-
-                    var path = AssetDatabase.GetAssetPath(obj);
-                    var root = new VisualElement();
-
-                    root.name = $"SceneElement-{obj.name}";
-                    root.AddToClassList("horizontal");
-                    root.AddToClassList("PushSceneLabel");
-
-                    var deleteButton = new Button();
-                    deleteButton.text = "X";
-                    deleteButton.clicked += () =>
-                    {
-                        pushSceneList.Remove(root);
-                        SceneListElementChangeEvent();
-                    };
-
-                    root.Add(new Label(path));
-                    root.Add(deleteButton);
-
-                    pushSceneList.Add(root);
-                    isElementChange = true;
+                    // すでに登録済みの場合スキップ
+                    var childrenNames = pushSceneList.Children().Select(x => x.name);
+                    if (childrenNames.Any(x => x == $"SceneElement-{dropObject.name}"))
+                        continue;
                 }
+
+                var path = AssetDatabase.GetAssetPath(dropObject);
+                var root = new VisualElement();
+
+                root.name = $"SceneElement-{dropObject.name}";
+                root.AddToClassList("horizontal");
+                root.AddToClassList("PushSceneLabel");
+
+                var deleteButton = new Button();
+                deleteButton.text = "X";
+                deleteButton.clicked += () =>
+                {
+                    pushSceneList.Remove(root);
+                };
+
+                root.Add(new Label(path));
+                root.Add(deleteButton);
+
+                pushSceneList.Add(root);
             }
 
-            if (isElementChange)
-                SceneListElementChangeEvent();
+            OnSceneListElementChange();
         }
 
         /// <summary>
-        /// 追加シーンリストの要素変更イベント
+        /// PushSceneListの取得
         /// </summary>
-        private void SceneListElementChangeEvent()
+        private UQueryBuilder<VisualElement> PushSceneLabels => pushSceneList.Query<VisualElement>(null, "PushSceneLabel");
+
+        /// <summary>
+        /// シーンリストの要素変更イベント
+        /// </summary>
+        private void OnSceneListElementChange()
         {
             var elementCount = PushSceneLabels.ToList().Count;
 
@@ -267,13 +273,6 @@ namespace MultiSceneLoader
                 dropSceneMessageLabel.visible = false;
             }
         }
-
-        /// <summary>
-        /// PushSceneListの取得
-        /// </summary>
-        private UQueryBuilder<VisualElement> PushSceneLabels => pushSceneList.Query<VisualElement>(null, "PushSceneLabel");
-
-
 
         /// <summary>
         /// セーブデータを取得する。無ければ作成する
@@ -289,7 +288,7 @@ namespace MultiSceneLoader
 
             var path = AssetDatabase.GUIDToAssetPath(guids[0]);
             var obj = AssetDatabase.LoadAssetAtPath<SceneLoadDataSO>(path);
-            
+
             return obj;
         }
 
@@ -302,14 +301,14 @@ namespace MultiSceneLoader
             var savePath = EditorUtility.SaveFilePanel("Save", "Assets", "SceneLoaderSaveData", "asset");
 
             // パスが入っていれば値が入っている
-            if (!string.IsNullOrEmpty(savePath)) 
+            if (!string.IsNullOrEmpty(savePath))
             {
                 var temp = Regex.Split(savePath, "/Assets/");
                 savePath = "Assets/" + temp[1];
 
                 // ファイルデータを作成
                 var createdSaveData = ScriptableObject.CreateInstance<SceneLoadDataSO>();
-                
+
                 // ファイルを指定した場所へ保存
                 AssetDatabase.CreateAsset(createdSaveData, savePath);
 
@@ -317,6 +316,15 @@ namespace MultiSceneLoader
             }
 
             return null;
+        }
+    }
+
+
+    public static class Extends
+    {
+        public static bool AnyChild(this ScrollView scrollView)
+        {
+            return scrollView.childCount > 0;
         }
     }
 }
